@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Information Base</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --mat: #bcd2dd;
+  --mat-deep: #9dbbc9;
+  --sheet: #f5f9fb;
+  --ink: #152631;
+  --ink-soft: #4a606d;
+  --plate: #263843;
+  --jack: #0e181f;
+  --cable: #f2b51d;
+  --cable-edge: #8f6500;
+  --down: #c22f45;
+  --up: #3fcf7f;
+  --action: #0a5680;
+  --display: "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", sans-serif;
+  --text: "Avenir Next", Avenir, "Segoe UI", "Noto Sans", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 15px/1.45 var(--text); color: var(--ink); background: var(--mat);
+  display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr) 400px;
+}
+h1, h2 { margin: 0; font-family: var(--display); font-weight: 600; line-height: 1.15; }
+h1 { font-size: 25px; }
+h2 { font-size: 20px; }
+p { margin: 0; }
+code { font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+button, input, select { font: inherit; color: inherit; }
+button {
+  border: 1px solid var(--mat-deep); background: #fff; border-radius: 4px;
+  padding: 6px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--action); }
+button.primary { background: var(--action); border-color: var(--action); color: #fff; font-weight: 600; }
+button.danger { color: var(--down); border-color: currentColor; }
+button.plain { border-color: transparent; background: none; text-decoration: underline; padding: 4px 6px; }
+input, select { border: 1px solid #7f9dac; border-radius: 4px; background: #fff; padding: 6px 8px; min-width: 0; }
+:focus-visible { outline: 3px solid var(--action); outline-offset: 2px; }
+
+header {
+  grid-column: 1 / -1; background: var(--sheet); padding: 14px 24px;
+  display: flex; align-items: center; gap: 32px; border-bottom: 1px solid var(--mat-deep);
+}
+.walk { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 16px; min-width: 0; }
+.walk-text { text-align: right; min-width: 0; }
+.walk-text b { display: block; }
+.walk-text span { color: var(--ink-soft); }
+
+main { display: grid; grid-template-rows: auto minmax(220px, 1fr) auto; min-width: 0; min-height: 0; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 24px 0; }
+.hint { color: var(--ink); margin-left: auto; }
+.bench { position: relative; min-height: 0; }
+svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; padding: 24px; }
+.empty h2 { font-size: 30px; }
+.empty[hidden] { display: none; }
+
+.plate rect.body { fill: var(--plate); stroke: var(--jack); }
+.plate { cursor: grab; }
+.plate.selected rect.body, .plate.flash rect.body { stroke: #fff; stroke-width: 3; }
+.plate text { fill: #fff; font: 600 19px var(--display); pointer-events: none; }
+.port, .addport { cursor: pointer; }
+.port rect { fill: var(--jack); stroke: #7d939f; stroke-width: 1.5; }
+.port:hover rect, .port.selected rect { stroke: #fff; stroke-width: 2.5; }
+.port.pending rect { stroke: var(--cable); stroke-width: 4; }
+.port .led { fill: #5d727e; }
+.port .led.up { fill: var(--up); }
+.port .led.down { fill: #ff6b7e; }
+.addport rect { fill: transparent; stroke: #7d939f; stroke-dasharray: 3 3; }
+.addport text { font: 18px var(--text); text-anchor: middle; }
+.cable { cursor: pointer; }
+.cable path { fill: none; stroke-linecap: round; }
+.cable .hit { stroke: transparent; stroke-width: 22; }
+.cable .edge { stroke: var(--cable-edge); stroke-width: 8; }
+.cable .core { stroke: var(--cable); stroke-width: 5; }
+.cable.down .edge { stroke: var(--sheet); }
+.cable.down .core { stroke: var(--down); stroke-dasharray: 3 11; }
+.cable.selected .edge { stroke: #fff; stroke-width: 11; }
+.cable text { font: 600 16px var(--display); text-anchor: middle; fill: var(--down); paint-order: stroke; stroke: var(--sheet); stroke-width: 5px; }
+.flash { animation: flash 1s ease-out; }
+@keyframes flash { from { filter: drop-shadow(0 0 9px #fff) brightness(1.5); } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+
+.details { background: var(--sheet); border-top: 1px solid var(--mat-deep); display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); max-height: 290px; }
+.details > section { padding: 16px 24px; overflow: auto; }
+.details > section + section { border-left: 1px solid var(--mat-deep); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.row input { flex: 1 1 100px; }
+dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 16px; margin: 8px 0 0; }
+dt { color: var(--ink-soft); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.soft { color: var(--ink-soft); }
+.note { color: var(--ink-soft); font-size: 14px; margin-top: 10px; }
+
+aside { background: var(--sheet); border-left: 1px solid var(--mat-deep); display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.subs { padding: 16px 20px; border-bottom: 1px solid var(--mat-deep); }
+.subs ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.subs li { display: flex; align-items: center; justify-content: space-between; }
+.subs select { flex: 1 1 110px; }
+#log { list-style: none; margin: 0; padding: 4px 20px 20px; overflow: auto; }
+#log > li { padding: 12px 0; border-bottom: 1px solid #d6e3ea; }
+#log ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.ev { border-left: 4px solid var(--action); padding: 1px 0 1px 10px; margin-top: 6px; }
+.ev.ENTITY_CREATED { border-color: #1f8a50; }
+.ev.ATTRIBUTE_CHANGED { border-color: var(--cable); }
+.ev.ENTITY_DELETED { border-color: var(--down); }
+.ev b { font-weight: 600; }
+.ev div { overflow-wrap: anywhere; }
+
+#message { position: absolute; left: 24px; bottom: 20px; max-width: min(480px, calc(100% - 48px)); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 4px; }
+#message[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  body { display: block; }
+  header { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px; }
+  .walk { justify-content: space-between; flex-wrap: wrap; }
+  .walk-text { text-align: left; }
+  .bench { height: 420px; }
+  main { display: block; }
+  .tools { padding: 14px 16px 0; }
+  .hint { margin-left: 0; width: 100%; }
+  .details { grid-template-columns: minmax(0, 1fr); max-height: none; }
+  .details > section { padding: 16px; }
+  .details > section + section { border-left: 0; border-top: 1px solid var(--mat-deep); }
+  aside { border-left: 0; border-top: 1px solid var(--mat-deep); }
+  #log { max-height: 480px; }
+  #message { position: fixed; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Network Information Base</h1>
+  <div class="walk" aria-live="polite">
+    <div class="walk-text"><b id="walk-title"></b><span id="walk-detail"></span></div>
+    <button id="restart" class="plain">Restart</button>
+    <button id="next" class="primary"></button>
+  </div>
+</header>
+
+<main>
+  <div class="tools">
+    <button id="add-switch">Add switch</button>
+    <button id="sample">Load sample network</button>
+    <button id="clear">Clear network</button>
+    <p class="hint" id="hint" aria-live="polite"></p>
+  </div>
+  <div class="bench">
+    <svg id="bench" aria-label="Network topology"></svg>
+    <div class="empty" id="empty">
+      <h2>The NIB is empty</h2>
+      <p>Start the walkthrough, add a switch, or load the sample network.</p>
+    </div>
+    <div id="message" role="alert" hidden></div>
+  </div>
+  <div class="details">
+    <section id="inspector" aria-label="Selected entity"></section>
+    <section aria-label="Neighbors">
+      <h2>Neighbors</h2>
+      <dl id="neighbors"></dl>
+      <p class="note">Switches count as neighbors while a link between them exists, even if its status is DOWN.</p>
+    </section>
+  </div>
+</main>
+
+<aside>
+  <section class="subs">
+    <h2>Subscriptions</h2>
+    <ul id="subs"></ul>
+    <form class="row" id="sub-form">
+      <select id="sub-event" aria-label="Event type">
+        <option value="">Any event</option>
+        <option value="ENTITY_CREATED">Created</option>
+        <option value="ATTRIBUTE_CHANGED">Attribute changed</option>
+        <option value="ENTITY_DELETED">Deleted</option>
+      </select>
+      <select id="sub-entity" aria-label="Entity type">
+        <option value="">Any entity</option>
+        <option value="switch">Switches</option>
+        <option value="port">Ports</option>
+        <option value="link">Links</option>
+      </select>
+      <button>Subscribe</button>
+    </form>
+  </section>
+  <ol id="log" aria-label="Calls and notifications" tabindex="0"></ol>
+</aside>
+
+<script>
+const $ = id => document.getElementById(id);
+const SVG = "http://www.w3.org/2000/svg";
+const PLATE_H = 62, NAME_W = 140, PORT_W = 36;
+const EVENT_NAMES = {
+  ENTITY_CREATED: "Created", ENTITY_UPDATED: "Updated",
+  ATTRIBUTE_CHANGED: "Attribute changed", ENTITY_DELETED: "Deleted",
+};
+const positions = new Map();
+let state = null, selected = null, pending = null, drag = null, lastEntry = null;
+
+function el(tag, props = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  node.append(...kids);
+  return node;
+}
+function svg(tag, attrs = {}, ...kids) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  node.append(...kids);
+  return node;
+}
+/* Makes an SVG group work with pointer and keyboard alike. */
+function pressable(node, label, key, fn) {
+  node.setAttribute("tabindex", "0");
+  node.setAttribute("role", "button");
+  node.setAttribute("aria-label", label);
+  node.dataset.key = key;
+  node.prepend(svg("title", {}, label));
+  node.addEventListener("click", e => { e.stopPropagation(); fn(); });
+  node.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); fn(); }
+  });
+  return node;
+}
+
+let messageTimer;
+function say(text) {
+  $("message").textContent = text;
+  $("message").hidden = false;
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => { $("message").hidden = true; }, 6000);
+}
+async function act(action, body = {}) {
+  try {
+    const res = await fetch("/api/do/" + action, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!res.ok) say((await res.json()).error);
+    return res.ok;
+  } catch {
+    say("The demo server is not responding. Run python examples/ui_demo.py again.");
+    return false;
+  }
+}
+
+const label = id => state.labels[id] || id.slice(0, 8);
+function find(id) {
+  const t = state.topology;
+  return [...t.switches, ...t.ports, ...t.links].find(x => x.id === id);
+}
+const plateWidth = s => NAME_W + (s.port_ids.length + 1) * PORT_W + 12;
+
+function place() {
+  const live = new Set(state.topology.switches.map(s => s.id));
+  for (const id of positions.keys()) if (!live.has(id)) positions.delete(id);
+  for (const s of state.topology.switches) {
+    if (positions.has(s.id)) continue;
+    for (let i = 0; ; i++) {
+      const spot = { x: 48 + (i % 2) * 400, y: 56 + Math.floor(i / 2) * 170 };
+      const taken = [...positions.values()].some(p => Math.abs(p.x - spot.x) < 220 && Math.abs(p.y - spot.y) < 90);
+      if (!taken) { positions.set(s.id, spot); break; }
+    }
+  }
+}
+function portPoint(portId) {
+  const port = find(portId);
+  const sw = find(port.switch_id);
+  const p = positions.get(sw.id);
+  return { x: p.x + NAME_W + sw.port_ids.indexOf(portId) * PORT_W + 15, y: p.y + 38 };
+}
+function cablePath(a, b) {
+  const dist = Math.hypot(a.x - b.x, a.y - b.y);
+  const sag = 46 + dist * 0.13;
+  const [top, low] = a.y <= b.y ? [a, b] : [b, a];
+  const stacked = low.y - top.y > 100;
+  const bow = stacked ? 22 : 0;
+  const c1 = { x: top.x + bow, y: top.y + sag };
+  const c2 = { x: low.x + bow, y: stacked ? low.y - sag : low.y + sag };
+  return {
+    d: `M${top.x} ${top.y} C${c1.x} ${c1.y} ${c2.x} ${c2.y} ${low.x} ${low.y}`,
+    mid: { x: (top.x + low.x + 3 * (c1.x + c2.x)) / 8, y: (top.y + low.y + 3 * (c1.y + c2.y)) / 8 },
+  };
+}
+
+function select(id) { selected = id; pending = null; draw(); inspect(); hint(); }
+async function pressPort(port) {
+  if (pending && pending !== port.id) {
+    const from = pending;
+    pending = null;
+    await act("connect", { port_a: from, port_b: port.id });
+    draw(); hint();
+    return;
+  }
+  selected = port.id;
+  pending = pending === port.id || port.link_id ? null : port.id;
+  draw(); inspect(); hint();
+}
+
+function draw(flash = new Set()) {
+  const root = $("bench");
+  const focusKey = document.activeElement?.dataset?.key;
+  const t = state.topology;
+  $("empty").hidden = t.switches.length > 0;
+
+  /* Scale to fit, but never zoom in past a two-switch row. */
+  let w = 720, h = 300;
+  for (const s of t.switches) {
+    const p = positions.get(s.id);
+    w = Math.max(w, p.x + plateWidth(s) + 48);
+    h = Math.max(h, p.y + PLATE_H + 110);
+  }
+  if (!drag) root.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+  const nodes = [];
+  for (const s of t.switches) {
+    const p = positions.get(s.id), pw = plateWidth(s);
+    const name = label(s.id);
+    const title = svg("text", { x: 16, y: 38 }, name.length > 11 ? name.slice(0, 10) + "…" : name);
+    const g = svg("g", { class: "plate", transform: `translate(${p.x} ${p.y})` },
+      svg("rect", { class: "body", width: pw, height: PLATE_H, rx: 4 }), title);
+    if (selected === s.id) g.classList.add("selected");
+    if (flash.has(s.id)) g.classList.add("flash");
+    g.addEventListener("pointerdown", e => startDrag(e, s.id));
+    pressable(g, "Switch " + name, s.id, () => select(s.id));
+
+    s.port_ids.forEach((id, i) => {
+      const port = find(id);
+      const link = port.link_id && find(port.link_id);
+      const led = !link ? "" : link.attributes.status === "DOWN" ? "down" : "up";
+      const pg = svg("g", { class: "port", transform: `translate(${NAME_W + i * PORT_W} 0)` },
+        svg("rect", { y: 24, width: 30, height: 28, rx: 3 }),
+        svg("circle", { class: "led " + led, cx: 15, cy: 14, r: 4 }));
+      if (selected === id) pg.classList.add("selected");
+      if (pending === id) pg.classList.add("pending");
+      if (flash.has(id)) pg.classList.add("flash");
+      g.append(pressable(pg, "Port " + label(id) + (link ? ", linked" : ", free"), id, () => pressPort(port)));
+    });
+    const add = svg("g", { class: "addport", transform: `translate(${NAME_W + s.port_ids.length * PORT_W} 0)` },
+      svg("rect", { y: 24, width: 30, height: 28, rx: 3 }), svg("text", { x: 15, y: 44 }, "+"));
+    g.append(pressable(add, "Add port to " + name, "add" + s.id, () => act("add_port", { switch_id: s.id })));
+    nodes.push(g);
+  }
+  for (const link of t.links) {
+    const { d, mid } = cablePath(portPoint(link.port_a_id), portPoint(link.port_b_id));
+    const down = link.attributes.status === "DOWN";
+    const g = svg("g", { class: "cable" + (down ? " down" : "") },
+      svg("path", { class: "hit", d }), svg("path", { class: "edge", d }), svg("path", { class: "core", d }));
+    if (down) g.append(svg("text", { x: mid.x, y: mid.y + 24 }, "DOWN"));
+    if (selected === link.id) g.classList.add("selected");
+    if (flash.has(link.id)) g.classList.add("flash");
+    nodes.push(pressable(g, "Link " + label(link.id) + (down ? ", DOWN" : ""), link.id, () => select(link.id)));
+  }
+  root.replaceChildren(...nodes);
+  if (focusKey) root.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
+}
+
+function toBench(e) {
+  return new DOMPoint(e.clientX, e.clientY).matrixTransform($("bench").getScreenCTM().inverse());
+}
+function startDrag(e, id) {
+  if (e.button !== 0 || e.target.closest(".port, .addport")) return;
+  const at = toBench(e), p = positions.get(id);
+  drag = { id, dx: at.x - p.x, dy: at.y - p.y, x0: e.clientX, y0: e.clientY, moved: false };
+}
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 4) return;
+  drag.moved = true;
+  const at = toBench(e);
+  positions.set(drag.id, { x: Math.max(8, at.x - drag.dx), y: Math.max(8, at.y - drag.dy) });
+  draw();
+});
+function endDrag() {
+  if (!drag) return;
+  const { moved } = drag;
+  drag = null;
+  if (!moved) return;
+  justDragged = true;
+  setTimeout(() => { justDragged = false; });
+  draw();
+}
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", endDrag);
+/* Releasing a dragged switch also fires a click; it should not change the selection. */
+let justDragged = false;
+$("bench").addEventListener("click", e => {
+  if (justDragged) { justDragged = false; e.stopPropagation(); }
+}, true);
+$("bench").addEventListener("click", e => { if (e.target === $("bench")) select(null); });
+
+function hint() {
+  $("hint").textContent = pending
+    ? `Choose another free port to connect ${label(pending)}`
+    : state.topology.ports.some(p => !p.link_id) ? "Click two free ports to connect them" : "";
+}
+
+function inspect() {
+  const box = $("inspector");
+  const e = selected && find(selected);
+  if (!e) {
+    box.replaceChildren(el("h2", {}, "Nothing selected"),
+      el("p", { class: "soft" }, "Click a switch, port, or cable to see its attributes."));
+    return;
+  }
+  const kind = e.type[0].toUpperCase() + e.type.slice(1);
+  const dl = el("dl", {}, el("dt", {}, "ID"), el("dd", {}, e.id));
+  if (e.type === "port") dl.append(el("dt", {}, "Switch"), el("dd", {}, label(e.switch_id)),
+    el("dt", {}, "Link"), el("dd", {}, e.link_id ? label(e.link_id) : "None"));
+  if (e.type === "switch") dl.append(el("dt", {}, "Ports"), el("dd", {}, String(e.port_ids.length)));
+  for (const [k, v] of Object.entries(e.attributes)) dl.append(el("dt", {}, k), el("dd", {}, String(v)));
+
+  const key = el("input", { placeholder: "Attribute", "aria-label": "Attribute name", maxlength: 200, required: "" });
+  const value = el("input", { placeholder: "Value", "aria-label": "Attribute value", maxlength: 200 });
+  const form = el("form", { class: "row", onsubmit: ev => {
+    ev.preventDefault();
+    act("set_attr", { entity_id: e.id, key: key.value, value: value.value });
+  } }, key, value, el("button", {}, "Set attribute"));
+
+  const buttons = el("div", { class: "row" });
+  if (e.type === "link") {
+    const to = e.attributes.status === "DOWN" ? "UP" : "DOWN";
+    buttons.append(el("button", { class: "primary", onclick: () =>
+      act("set_attr", { entity_id: e.id, key: "status", value: to }) }, "Set link " + to));
+  }
+  buttons.append(el("button", { class: "danger", onclick: () => act("delete", { entity_id: e.id }) }, "Delete " + e.type));
+  box.replaceChildren(el("h2", {}, `${kind} ${label(e.id)}`), dl, buttons, form);
+}
+
+function renderSide(isNew) {
+  $("subs").replaceChildren(...state.subscriptions.map(s => {
+    const ev = s.event_type ? EVENT_NAMES[s.event_type] : "Any event";
+    const text = `${ev} on ${s.entity_type ? { switch: "switches", port: "ports", link: "links" }[s.entity_type] : "any entity"}`;
+    return el("li", {}, text, el("button", { class: "plain", "aria-label": "Unsubscribe from " + text,
+      onclick: () => act("unsubscribe", { id: s.id }) }, "Unsubscribe"));
+  }));
+  if (!state.subscriptions.length) $("subs").append(el("li", { class: "soft" }, "Nothing is listening, so no events are delivered."));
+
+  $("log").replaceChildren(...[...state.log].reverse().map(entry => {
+    const li = el("li", {}, el("code", {}, entry.call));
+    if (entry.result) li.append(el("div", {}, "Returned " + entry.result));
+    if (entry.events.length) li.append(el("ul", {}, ...entry.events.map(ev => {
+      const item = el("li", { class: "ev " + ev.type },
+        el("div", {}, el("b", {}, EVENT_NAMES[ev.type]), ` ${ev.entity_type} ${ev.label}`));
+      if (ev.type === "ATTRIBUTE_CHANGED") {
+        const was = ev.info.old_value === null ? "not set" : ev.info.old_value;
+        item.append(el("div", { class: "soft" }, `${ev.info.key}: ${was} to ${ev.info.new_value}`));
+      } else if (ev.info.reason && ev.info.reason !== "deleted") {
+        item.append(el("div", { class: "soft" }, ev.info.reason));
+      }
+      return item;
+    })));
+    return li;
+  }));
+  if (isNew) $("log").scrollTop = 0;
+
+  const adj = state.topology.adjacency;
+  $("neighbors").replaceChildren(...Object.entries(adj).flatMap(([id, others]) =>
+    [el("dt", {}, label(id)), el("dd", {}, others.map(label).join(", ") || "None")]));
+  if (!Object.keys(adj).length) $("neighbors").append(el("dd", { class: "soft" }, "No switches yet"));
+
+  const n = state.step, total = state.steps.length;
+  $("walk-title").textContent = n ? `Step ${n} of ${total}: ${state.steps[n - 1].title}` : "Walkthrough";
+  $("walk-detail").textContent = n ? state.steps[n - 1].detail : "Nine steps. Starting it replaces the current network.";
+  $("next").textContent = n === 0 ? "Start walkthrough" : n < total ? "Next step" : "Start again";
+  $("restart").hidden = n === 0 || n === total;
+}
+
+function update(next) {
+  const top = next.log.length ? next.log[next.log.length - 1].n : 0;
+  const before = lastEntry;
+  const flash = new Set();
+  if (before !== null) for (const entry of next.log) {
+    if (entry.n > before) entry.events.forEach(ev => flash.add(ev.entity_id));
+  }
+  const selectedBefore = state && selected ? JSON.stringify(find(selected)) : null;
+  state = next;
+  lastEntry = top;
+  if (selected && !find(selected)) selected = null;
+  if (pending && (!find(pending) || find(pending).link_id)) pending = null;
+  place();
+  draw(flash);
+  /* Rebuild the form only when its entity changed, so typing is not lost. */
+  const selectedNow = selected ? JSON.stringify(find(selected)) : null;
+  if (selectedNow === null || selectedNow !== selectedBefore) inspect();
+  renderSide(top !== before);
+  hint();
+}
+
+$("add-switch").onclick = () => act("add_switch");
+$("sample").onclick = () => act("sample");
+$("clear").onclick = () => act("clear");
+$("next").onclick = () => act("next_step");
+$("restart").onclick = () => act("next_step", { restart: true });
+$("sub-form").onsubmit = e => {
+  e.preventDefault();
+  act("subscribe", { event_type: $("sub-event").value, entity_type: $("sub-entity").value });
+};
+window.addEventListener("resize", () => state && draw());
+window.addEventListener("keydown", e => { if (e.key === "Escape" && state) select(null); });
+
+let lost = false;
+const stream = new EventSource("/api/stream");
+stream.onmessage = e => {
+  if (lost) { lost = false; $("message").hidden = true; }
+  update(JSON.parse(e.data));
+};
+stream.onerror = () => { lost = true; say("Lost the demo server. Run python examples/ui_demo.py again."); };
+</script>
+</body>
+</html>

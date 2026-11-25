@@ -60,6 +60,14 @@ python examples/demo.py
 
 The demo creates two switches, a link, prints topology, flips the link to `DOWN` (and prints the attribute event), then deletes a switch and shows cascade deletion.
 
+### Browser UI
+
+```bash
+python examples/ui_demo.py
+```
+
+This opens `http://127.0.0.1:8765` with a live topology, a step-by-step version of the demo, and a log of each NIB call with the events it delivered. It uses only the standard library and is reachable only from your machine. Use `--port` to change the port or `--no-browser` to stop it opening a tab. Press Ctrl+C to stop.
+
 ## Run tests
 
 From `nib-project/`:
